@@ -1,4 +1,4 @@
-# @spd/propertypane-controls
+# @spdesigns/propertypane-controls
 
 Reusable SPFx PropertyPane controls extracted from `spd-product-design6`, so
 they can be shared across SPFx solutions/repos instead of being copy-pasted
@@ -17,27 +17,25 @@ into each webpart's `src/shared/components/` folder.
 
 ## Install into an SPFx solution
 
-This package isn't published to a public registry. Use one of:
+```
+npm install @spdesigns/propertypane-controls
+```
 
-**Option A — local path dependency (monorepo / same checkout):**
+Or, for local development against an unpublished change (monorepo / same checkout):
 ```json
 // package.json
 "dependencies": {
-  "@spd/propertypane-controls": "file:../../../shared-packages/spd-propertypane-controls"
+  "@spdesigns/propertypane-controls": "file:../../../shared-packages/spd-propertypane-controls"
 }
 ```
 Then `npm install` and `npm run build` inside `shared-packages/spd-propertypane-controls` once so `lib/` exists.
-
-**Option B — private registry (recommended for cross-repo reuse):**
-Publish this folder to your org's private npm feed (GitHub Packages / Azure Artifacts)
-under the `@spd` scope, then `npm install @spd/propertypane-controls` like any package.
 
 ## Usage
 
 ### Single color picker
 
 ```ts
-import { ColorPropertyControls } from "@spd/propertypane-controls";
+import { ColorPropertyControls } from "@spdesigns/propertypane-controls";
 
 private _colorManager = new ColorPropertyControls();
 
@@ -83,7 +81,7 @@ protected onInit(): Promise<void> {
 Place it immediately before the corresponding `PropertyFieldFilePicker`:
 
 ```ts
-import { PropertyPaneImagePickerField } from "@spd/propertypane-controls";
+import { PropertyPaneImagePickerField } from "@spdesigns/propertypane-controls";
 import { PropertyFieldFilePicker, PropertyFieldFilePickerOrientation } from "@pnp/spfx-property-controls";
 
 PropertyPaneImagePickerField({
@@ -117,5 +115,5 @@ PropertyFieldFilePicker("backgroundImageUrl", {
 1. Add the dependency (Option A or B above).
 2. Delete the webpart's local `src/shared/components/ColorPropertyControls.ts` and/or
    `PropertyPaneImagePickerField.ts`.
-3. Replace the import with `from "@spd/propertypane-controls"`.
+3. Replace the import with `from "@spdesigns/propertypane-controls"`.
 4. No API changes are needed — this package is a byte-for-byte extraction.
