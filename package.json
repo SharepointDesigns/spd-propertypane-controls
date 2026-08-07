@@ -1,5 +1,5 @@
 {
-  "name": "@spd/propertypane-controls",
+  "name": "@spdesigns/propertypane-controls",
   "version": "1.0.0",
   "description": "Reusable SPFx PropertyPane controls: single/dual color pickers and an image picker preview field.",
   "main": "lib/index.js",

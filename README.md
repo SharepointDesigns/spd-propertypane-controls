@@ -1,57 +1,68 @@
-# @spd/propertypane-controls
+# @spdesigns/propertypane-controls
 
-Reusable SPFx PropertyPane controls extracted from `spd-product-design6`, so
-they can be shared across SPFx solutions/repos instead of being copy-pasted
-into each webpart's `src/shared/components/` folder.
+Reusable SPFx PropertyPane controls — a single/dual color picker and an image
+picker — shared across SPFx webparts instead of copy-pasted into each one.
+
+![Property pane controls hero](assets/hero%20image.png)
+
+> A complete, runnable example wiring up all three controls in one web part
+> lives in [`example-usage.ts`](example-usage.ts).
 
 ## What's included
 
 - **`ColorPropertyControls`** — theme-aware color picker manager.
-  - `renderCompactColorPickerFields()` — **single** color: swatch + hex + toggle.
-  - `renderThemeSwatchPickerFields()` — **dual** color (background + themePrimary card grid).
-  - `renderPropertyPaneField()` — legacy single-color palette picker (back-compat).
-  - `loadColors()` — reads `theme.spcolor`, falls back to `ThemeProvider`.
-- **`PropertyPaneImagePickerField`** — image preview/placeholder field that drives
-  a `PropertyFieldFilePicker` (from `@pnp/spfx-property-controls`) placed right after it,
-  and hides that picker's native row.
+  - `renderCompactColorPickerFields()` — single color: swatch + hex + toggle.
+  - `renderThemeSwatchPickerFields()` — dual color (background + accent card grid).
+  - `loadColors()` — reads the tenant theme colors so swatches always match the site.
+- **`PropertyPaneImagePickerField`** — image preview/placeholder field that
+  drives a `PropertyFieldFilePicker` (from `@pnp/spfx-property-controls`).
 
-## Install into an SPFx solution
+## Install
 
-This package isn't published to a public registry. Use one of:
+```
+npm install @spdesigns/propertypane-controls
+```
 
-**Option A — local path dependency (monorepo / same checkout):**
+For local development against an unpublished change:
 ```json
 // package.json
 "dependencies": {
-  "@spd/propertypane-controls": "file:../../../shared-packages/spd-propertypane-controls"
+  "@spdesigns/propertypane-controls": "file:../../../shared-packages/spd-propertypane-controls"
 }
 ```
-Then `npm install` and `npm run build` inside `shared-packages/spd-propertypane-controls` once so `lib/` exists.
+Then run `npm install` and `npm run build` inside the package once so `lib/` exists.
 
-**Option B — private registry (recommended for cross-repo reuse):**
-Publish this folder to your org's private npm feed (GitHub Packages / Azure Artifacts)
-under the `@spd` scope, then `npm install @spd/propertypane-controls` like any package.
-
-## Usage
-
-### Single color picker
+## Setup (once per webpart)
 
 ```ts
-import { ColorPropertyControls } from "@spd/propertypane-controls";
+import { ColorPropertyControls } from "@spdesigns/propertypane-controls";
 
-private _colorManager = new ColorPropertyControls();
+export default class MyWebPart extends BaseClientSideWebPart<IMyWebPartProps> {
+  private _colorManager = new ColorPropertyControls();
 
-protected onInit(): Promise<void> {
-  return this._colorManager
-    .loadColors(this.context.serviceScope, this.properties.selectedThemeIndextxt ?? -1)
-    .then(() => super.onInit());
-}
+  protected async onInit(): Promise<void> {
+    await this._colorManager.loadColors(this.context.serviceScope, -1);
+    return super.onInit();
+  }
+```
 
-// in getPropertyPaneConfiguration():
-...this._colorManager.renderCompactColorPickerFields({
-  propertyName: "welcomeTextColor",
+That's it — `_colorManager` now has the tenant's swatches and color pairs
+loaded, ready to use in `getPropertyPaneConfiguration()`.
+
+## 1. Single color picker
+
+One color property (e.g. text color, background color). Add one field to your
+property pane group per color you want configurable:
+
+![Single color picker](assets/single%20color%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L40-L70) (the "Text color" group).
+
+```ts
+this._colorManager.renderCompactColorPickerFields({
+  propertyName: "textColor",           // matches this.properties.textColor
   label: "Text color",
-  getCurrentColor: () => this.properties.welcomeTextColor,
+  getCurrentColor: () => this.properties.textColor,
   onColorChange: (prop, color) => {
     (this.properties as Record<string, string>)[prop] = color;
     this.render();
@@ -61,30 +72,97 @@ protected onInit(): Promise<void> {
 }),
 ```
 
-### Dual color (theme swatch) picker
+Add as many of these as you have color properties — each call is independent.
+Keep the property itself a plain `string` (not an object) so nothing else
+needs to change to use it.
+
+To also let users enter a free-form hex value, pass a
+`PropertyFieldColorPicker` (from `@pnp/spfx-property-controls`) via
+`additionalExpandedFields` — it renders below the swatch grid whenever the
+picker is open:
 
 ```ts
-...this._colorManager.renderThemeSwatchPickerFields({
+import { PropertyFieldColorPicker, PropertyFieldColorPickerStyle } from "@pnp/spfx-property-controls";
+
+this._colorManager.renderCompactColorPickerFields({
+  propertyName: "textColor",
+  label: "Text color",
+  getCurrentColor: () => this.properties.textColor,
+  onColorChange: (prop, color) => {
+    (this.properties as Record<string, string>)[prop] = color;
+    this.render();
+  },
+  onRefresh: () => this.context.propertyPane.refresh(),
+  onRender: () => this.render(),
+  additionalExpandedFields: [
+    PropertyFieldColorPicker("textColor", {
+      label: "",
+      selectedColor: this.properties.textColor || "#000",
+      onPropertyChange: (_prop, _old, newValue) => {
+        this.properties.textColor = newValue;
+        this.render();
+        this.context.propertyPane.refresh();
+      },
+      properties: this.properties,
+      style: PropertyFieldColorPickerStyle.Full,
+      key: "textColorCustomPicker",
+    }),
+  ],
+}),
+```
+
+> **Optional — object-shaped color properties.** If your color property is an
+> object (e.g. `selectedColor: { themePrimary: string }`) instead of a flat
+> string, `PropertyFieldColorPicker` will still write a raw string to
+> `targetProperty` and overwrite the whole object. In that case, add an
+> `onPropertyPaneFieldChanged` override to repair it — this is not required
+> for flat string properties:
+> ```ts
+> protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: string, newValue: string): void {
+>   if (propertyPath === "selectedColor" && typeof newValue === "string") {
+>     this.properties.selectedColor = { themePrimary: newValue };
+>   }
+> }
+> ```
+
+## 2. Dual color (theme swatch) picker
+
+For a background + accent color pair (e.g. button hover theme, gradient
+card), backed by a single index property:
+
+![Dual color picker](assets/dual%20color%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L73-L90) (the "Button hover theme" group).
+
+```ts
+this._colorManager.renderThemeSwatchPickerFields({
   targetProperty: "selectedThemeIndex",
   colorPairs: this._colorManager.colorPairs,
   selectedIndex: this.properties.selectedThemeIndex ?? 0,
   label: "Button hover theme",
   onSelect: (index, pair) => {
     this.properties.selectedThemeIndex = index;
-    this.properties.selectedColors = pair;
+    this.properties.selectedColors = pair;   // { backgroundColor, themePrimary }
     this.context.propertyPane.refresh();
     this.render();
   },
 }),
 ```
 
-### Image picker
+## 3. Image picker
 
-Place it immediately before the corresponding `PropertyFieldFilePicker`:
+Place `PropertyPaneImagePickerField` immediately before the
+`PropertyFieldFilePicker` it drives, and keep `buttonLabel` set to
+`"Select image"` — the image picker finds the file picker's button by that
+label text, so it must match exactly.
+
+![Image picker](assets/image%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L92-L123) (the "Background image" group).
 
 ```ts
-import { PropertyPaneImagePickerField } from "@spd/propertypane-controls";
-import { PropertyFieldFilePicker, PropertyFieldFilePickerOrientation } from "@pnp/spfx-property-controls";
+import { PropertyPaneImagePickerField } from "@spdesigns/propertypane-controls";
+import { PropertyFieldFilePicker } from "@pnp/spfx-property-controls";
 
 PropertyPaneImagePickerField({
   key: "backgroundImagePreview",
@@ -96,14 +174,14 @@ PropertyPaneImagePickerField({
   },
 }),
 PropertyFieldFilePicker("backgroundImageUrl", {
-  context: this.context as unknown as IPropertyFieldFilePickerHostProps["context"],
+  context: this.context,
   filePickerResult: undefined,
-  onSave: (r: IFilePickerResult) => {
+  onSave: (r) => {
     this.properties.backgroundImageUrl = r.fileAbsoluteUrl;
     this.context.propertyPane.refresh();
     this.render();
   },
-  onChanged: (r: IFilePickerResult) => {
+  onChanged: (r) => {
     this.properties.backgroundImageUrl = r.fileAbsoluteUrl;
   },
   buttonLabel: "Select image",
@@ -112,10 +190,20 @@ PropertyFieldFilePicker("backgroundImageUrl", {
 }),
 ```
 
-## Migrating an existing webpart off the duplicated copy
+## Migrating an existing webpart off a copy-pasted version
 
-1. Add the dependency (Option A or B above).
-2. Delete the webpart's local `src/shared/components/ColorPropertyControls.ts` and/or
-   `PropertyPaneImagePickerField.ts`.
-3. Replace the import with `from "@spd/propertypane-controls"`.
-4. No API changes are needed — this package is a byte-for-byte extraction.
+1. Add the dependency (see Install above).
+2. Delete the webpart's local `ColorPropertyControls.ts` / `PropertyPaneImagePickerField.ts`.
+3. Replace the import with `from "@spdesigns/propertypane-controls"`.
+4. No API changes needed — this package is a byte-for-byte extraction.
+
+## Tips
+
+- Keep color properties as flat strings (`color: string`), not nested objects
+  — it's less to get wrong when pairing with a free-form hex picker.
+- If you restore a saved color/index in `onInit()`, only assign it when the
+  property is still unset (`if (!this.properties.textColor) ...`) so you
+  don't overwrite a color the user already picked every time the pane opens.
+- `onDelete` for the image picker should just clear the property if the file
+  belongs to the user's library; only delete the underlying file too if your
+  webpart owns/uploaded it.
