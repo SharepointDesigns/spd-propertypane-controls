@@ -196,7 +196,7 @@ export class ColorPropertyControls {
         };
 
         const seen = new Set<string>();
-        this._swatches = PALETTE_KEYS.map((k) => ({
+        const primarySwatches = PALETTE_KEYS.map((k) => ({
           color: getColor(k),
           label: k,
         })).filter((s): s is IColorPropertySwatch => {
@@ -204,9 +204,6 @@ export class ColorPropertyControls {
           seen.add(s.color);
           return true;
         });
-        if (this._swatches.length === 0) {
-          this._swatches = [...FALLBACK_COLORS];
-        }
 
         const secondaryPaletteNodes = xmlDoc.querySelectorAll(
           "secondaryColors > light > colorPalette",
@@ -222,6 +219,21 @@ export class ColorPropertyControls {
             return entry;
           },
         );
+
+        const secondarySwatches: IColorPropertySwatch[] = [];
+        palettesFromXml.forEach((entry, i) => {
+          Object.keys(entry).forEach((name) => {
+            const color = entry[name];
+            if (!color || seen.has(color)) return;
+            seen.add(color);
+            secondarySwatches.push({ color, label: `Secondary ${i + 1}` });
+          });
+        });
+
+        this._swatches = [...primarySwatches, ...secondarySwatches];
+        if (this._swatches.length === 0) {
+          this._swatches = [...FALLBACK_COLORS];
+        }
 
         const white = "#ffffff";
         const fallbackPairs = (
