@@ -207,3 +207,20 @@ PropertyFieldFilePicker("backgroundImageUrl", {
 - `onDelete` for the image picker should just clear the property if the file
   belongs to the user's library; only delete the underlying file too if your
   webpart owns/uploaded it.
+
+## Changelog
+
+### 1.0.2
+- `renderThemeSwatchPickerFields()` dual picker now cross-joins every unique
+  `themePrimary` with every unique `backgroundColor` found across the site's
+  secondary color palettes, instead of only the as-authored pairs.
+
+### 1.0.1
+- `renderCompactColorPickerFields()` single picker now also includes colors
+  from the site's secondary/branding palettes (`secondaryColors > light`),
+  not just the primary theme palette — matching what the `ThemeProvider`
+  fallback path already did.
+
+### 1.0.0
+- Initial release: `ColorPropertyControls` (single + dual color pickers) and
+  `PropertyPaneImagePickerField`.
