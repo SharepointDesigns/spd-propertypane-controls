@@ -3,6 +3,11 @@
 Reusable SPFx PropertyPane controls — a single/dual color picker and an image
 picker — shared across SPFx webparts instead of copy-pasted into each one.
 
+![Property pane controls hero](assets/hero%20image.png)
+
+> A complete, runnable example wiring up all three controls in one web part
+> lives in [`example-usage.ts`](example-usage.ts).
+
 ## What's included
 
 - **`ColorPropertyControls`** — theme-aware color picker manager.
@@ -48,6 +53,10 @@ loaded, ready to use in `getPropertyPaneConfiguration()`.
 
 One color property (e.g. text color, background color). Add one field to your
 property pane group per color you want configurable:
+
+![Single color picker](assets/single%20color%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L40-L70) (the "Text color" group).
 
 ```ts
 this._colorManager.renderCompactColorPickerFields({
@@ -121,6 +130,10 @@ this._colorManager.renderCompactColorPickerFields({
 For a background + accent color pair (e.g. button hover theme, gradient
 card), backed by a single index property:
 
+![Dual color picker](assets/dual%20color%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L73-L90) (the "Button hover theme" group).
+
 ```ts
 this._colorManager.renderThemeSwatchPickerFields({
   targetProperty: "selectedThemeIndex",
@@ -142,6 +155,10 @@ Place `PropertyPaneImagePickerField` immediately before the
 `PropertyFieldFilePicker` it drives, and keep `buttonLabel` set to
 `"Select image"` — the image picker finds the file picker's button by that
 label text, so it must match exactly.
+
+![Image picker](assets/image%20picker.png)
+
+See it wired up in [`example-usage.ts`](example-usage.ts#L92-L123) (the "Background image" group).
 
 ```ts
 import { PropertyPaneImagePickerField } from "@spdesigns/propertypane-controls";
