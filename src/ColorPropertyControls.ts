@@ -114,6 +114,31 @@ const FALLBACK_COLORS: IColorPropertySwatch[] = [
   { color: "rgba(102, 102, 102, 0.5)", label: "Half Gray" },
 ];
 
+/**
+ * Cross-joins a list of {themePrimary, backgroundColor} pairs into every
+ * unique primary x unique background combination, instead of only the
+ * as-authored pairings.
+ */
+function _crossJoinColorPairs(
+  pairs: Array<{ themePrimary: string; backgroundColor: string }>,
+): Array<{ themePrimary: string; backgroundColor: string }> {
+  const primaries = Array.from(
+    new Set(pairs.map((p) => p.themePrimary).filter(Boolean)),
+  );
+  const backgrounds = Array.from(
+    new Set(pairs.map((p) => p.backgroundColor).filter(Boolean)),
+  );
+
+  const combinations: Array<{ themePrimary: string; backgroundColor: string }> =
+    [];
+  for (const themePrimary of primaries) {
+    for (const backgroundColor of backgrounds) {
+      combinations.push({ themePrimary, backgroundColor });
+    }
+  }
+  return combinations;
+}
+
 function _contrastText(hex: string): string {
   const c = hex.replace("#", "");
   if (c.length < 6) return "#000000";
@@ -196,7 +221,7 @@ export class ColorPropertyControls {
         };
 
         const seen = new Set<string>();
-        this._swatches = PALETTE_KEYS.map((k) => ({
+        const primarySwatches = PALETTE_KEYS.map((k) => ({
           color: getColor(k),
           label: k,
         })).filter((s): s is IColorPropertySwatch => {
@@ -204,9 +229,6 @@ export class ColorPropertyControls {
           seen.add(s.color);
           return true;
         });
-        if (this._swatches.length === 0) {
-          this._swatches = [...FALLBACK_COLORS];
-        }
 
         const secondaryPaletteNodes = xmlDoc.querySelectorAll(
           "secondaryColors > light > colorPalette",
@@ -222,6 +244,21 @@ export class ColorPropertyControls {
             return entry;
           },
         );
+
+        const secondarySwatches: IColorPropertySwatch[] = [];
+        palettesFromXml.forEach((entry, i) => {
+          Object.keys(entry).forEach((name) => {
+            const color = entry[name];
+            if (!color || seen.has(color)) return;
+            seen.add(color);
+            secondarySwatches.push({ color, label: `Secondary ${i + 1}` });
+          });
+        });
+
+        this._swatches = [...primarySwatches, ...secondarySwatches];
+        if (this._swatches.length === 0) {
+          this._swatches = [...FALLBACK_COLORS];
+        }
 
         const white = "#ffffff";
         const fallbackPairs = (
@@ -242,12 +279,14 @@ export class ColorPropertyControls {
             backgroundColor,
           }));
 
-        this._colorPairs = (
-          palettesFromXml.length > 0 ? palettesFromXml : fallbackPairs
-        ).map((e) => ({
-          themePrimary: e.themePrimary ?? white,
-          backgroundColor: e.backgroundColor ?? white,
-        }));
+        this._colorPairs = _crossJoinColorPairs(
+          (palettesFromXml.length > 0 ? palettesFromXml : fallbackPairs).map(
+            (e) => ({
+              themePrimary: e.themePrimary ?? white,
+              backgroundColor: e.backgroundColor ?? white,
+            }),
+          ),
+        );
 
         if (savedIndex >= 0 && this._swatches[savedIndex]) {
           return {
@@ -314,8 +353,9 @@ export class ColorPropertyControls {
           backgroundColor,
         }));
 
-      this._colorPairs =
-        pairsFromTheme.length > 0 ? pairsFromTheme : fallbackPairs;
+      this._colorPairs = _crossJoinColorPairs(
+        pairsFromTheme.length > 0 ? pairsFromTheme : fallbackPairs,
+      );
     } else {
       this._swatches = [...FALLBACK_COLORS];
     }
