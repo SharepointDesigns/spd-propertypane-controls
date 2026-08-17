@@ -16,6 +16,8 @@ picker — shared across SPFx webparts instead of copy-pasted into each one.
   - `loadColors()` — reads the tenant theme colors so swatches always match the site.
 - **`PropertyPaneImagePickerField`** — image preview/placeholder field that
   drives a `PropertyFieldFilePicker` (from `@pnp/spfx-property-controls`).
+- **`PropertyPaneHeadingDropdownField`** — heading-level dropdown (H1–H4/Normal)
+  with a custom font-size slider.
 
 ## Install
 
@@ -190,10 +192,39 @@ PropertyFieldFilePicker("backgroundImageUrl", {
 }),
 ```
 
+## 4. Heading dropdown
+
+A heading-level dropdown (H1–H4/Normal) that reveals a font-size slider when
+"Custom Font Size" is selected.
+
+```ts
+import { PropertyPaneHeadingDropdownField } from "@spdesigns/propertypane-controls";
+
+PropertyPaneHeadingDropdownField({
+  key: "headingLevel",
+  selected: this.properties.headingLevel || "20",
+  customSize: this.properties.customFontSize,
+  onChange: (val) => {
+    this.properties.headingLevel = val;
+    this.render();
+  },
+  onCustomSizeChange: (val) => {
+    this.properties.customFontSize = val;
+    this.render();
+  },
+}),
+```
+
+`selected` is the option key — `"32"`/`"28"`/`"24"`/`"20"` (Heading 1–4),
+`"18"` (Normal), or `"custom"`. Apply the resulting `headingLevel` /
+`customFontSize` to your rendered heading however your webpart already maps
+font sizes (e.g. a CSS custom property).
+
 ## Migrating an existing webpart off a copy-pasted version
 
 1. Add the dependency (see Install above).
-2. Delete the webpart's local `ColorPropertyControls.ts` / `PropertyPaneImagePickerField.ts`.
+2. Delete the webpart's local `ColorPropertyControls.ts` / `PropertyPaneImagePickerField.ts` /
+   `HeadingDropdown.tsx` / `HeadingDropdownPropertyPane.ts`.
 3. Replace the import with `from "@spdesigns/propertypane-controls"`.
 4. No API changes needed — this package is a byte-for-byte extraction.
 
@@ -209,6 +240,10 @@ PropertyFieldFilePicker("backgroundImageUrl", {
   webpart owns/uploaded it.
 
 ## Changelog
+
+### 1.1.0
+- Added `PropertyPaneHeadingDropdownField` (heading-level dropdown with a
+  custom font-size slider) and the underlying `HeadingDropdown` React component.
 
 ### 1.0.2
 - `renderThemeSwatchPickerFields()` dual picker now cross-joins every unique

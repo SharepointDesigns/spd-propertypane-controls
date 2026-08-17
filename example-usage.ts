@@ -1,6 +1,7 @@
 /**
  * Example: using @spdesigns/propertypane-controls in an SPFx web part.
- * Covers: single color picker, dual (theme swatch) color picker, and image picker.
+ * Covers: single color picker, dual (theme swatch) color picker, image picker,
+ * and heading dropdown.
  */
 
 import { BaseClientSideWebPart, IPropertyPaneConfiguration, PropertyPaneGroup } from "@microsoft/sp-property-pane";
@@ -12,6 +13,7 @@ import {
 import {
   ColorPropertyControls,
   PropertyPaneImagePickerField,
+  PropertyPaneHeadingDropdownField,
 } from "@spdesigns/propertypane-controls";
 
 export interface IExampleWebPartProps {
@@ -19,6 +21,8 @@ export interface IExampleWebPartProps {
   selectedThemeIndex: number;
   selectedColors?: { backgroundColor: string; themePrimary: string };
   backgroundImageUrl?: string;
+  headingLevel: string;
+  customFontSize: number;
 }
 
 export default class ExampleWebPart extends BaseClientSideWebPart<IExampleWebPartProps> {
@@ -118,6 +122,26 @@ export default class ExampleWebPart extends BaseClientSideWebPart<IExampleWebPar
                   buttonLabel: "Select image",
                   properties: this.properties,
                   key: "backgroundImageUrlFilePicker",
+                }),
+              ],
+            } as PropertyPaneGroup,
+
+            // ---- 3d. Heading dropdown ----
+            {
+              groupName: "Heading",
+              groupFields: [
+                PropertyPaneHeadingDropdownField({
+                  key: "headingLevel",
+                  selected: this.properties.headingLevel || "20",
+                  customSize: this.properties.customFontSize,
+                  onChange: (val) => {
+                    this.properties.headingLevel = val;
+                    this.render();
+                  },
+                  onCustomSizeChange: (val) => {
+                    this.properties.customFontSize = val;
+                    this.render();
+                  },
                 }),
               ],
             } as PropertyPaneGroup,
