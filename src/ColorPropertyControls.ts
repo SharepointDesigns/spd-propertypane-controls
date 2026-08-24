@@ -115,28 +115,101 @@ const FALLBACK_COLORS: IColorPropertySwatch[] = [
 ];
 
 /**
- * Cross-joins a list of {themePrimary, backgroundColor} pairs into every
- * unique primary x unique background combination, instead of only the
- * as-authored pairings.
+ * Builds every ordered (themePrimary, backgroundColor) combination across the
+ * full set of site colors referenced by the input pairs — not just the
+ * as-authored pairings. A color counts as "in the set" if it appears as
+ * either a themePrimary or a backgroundColor in any input pair, so this
+ * naturally includes white (always present as a role in the input) alongside
+ * every color the admin added under site branding. Same-color combinations
+ * (e.g. white paired with itself) are excluded since they're not a usable
+ * accent/background pair.
+ *
+ * For N distinct site colors plus white, this yields (N+1) * N combinations —
+ * e.g. 2 site colors -> 3 total colors -> 6 combinations.
  */
 function _crossJoinColorPairs(
   pairs: Array<{ themePrimary: string; backgroundColor: string }>,
 ): Array<{ themePrimary: string; backgroundColor: string }> {
-  const primaries = Array.from(
-    new Set(pairs.map((p) => p.themePrimary).filter(Boolean)),
-  );
-  const backgrounds = Array.from(
-    new Set(pairs.map((p) => p.backgroundColor).filter(Boolean)),
-  );
+  const seen = new Set<string>();
+  const colors: string[] = [];
+  pairs.forEach((p) => {
+    [p.themePrimary, p.backgroundColor].forEach((color) => {
+      if (!color) return;
+      const key = color.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      colors.push(color);
+    });
+  });
 
   const combinations: Array<{ themePrimary: string; backgroundColor: string }> =
     [];
-  for (const themePrimary of primaries) {
-    for (const backgroundColor of backgrounds) {
+  for (const themePrimary of colors) {
+    for (const backgroundColor of colors) {
+      if (themePrimary.toLowerCase() === backgroundColor.toLowerCase()) continue;
       combinations.push({ themePrimary, backgroundColor });
     }
   }
   return combinations;
+}
+
+/** Matches swatch labels sourced from the theme's secondary color pairs
+ * ("Secondary 1", "Secondary 2", ... from the theme.spcolor XML branch, or
+ * "brand-1", "brand-2", ... from the ThemeProvider fallback branch) — the
+ * only place the real brand color is known to leak through when the
+ * "themePrimary" slot itself has been corrupted to white. Derived palette
+ * shades like "themeDarker" or "themeSecondary" are deliberately excluded:
+ * they're computed tints/shades and not necessarily the real brand color.
+ */
+const SECONDARY_SWATCH_LABEL = /^(Secondary\s\d+|brand-\d+)$/i;
+
+/**
+ * The site theme sometimes resolves the "themePrimary" palette slot to pure
+ * white (e.g. when the applied theme's secondary-pair data has its accent and
+ * background roles swapped upstream), while the actual brand color the admin
+ * picked ends up in the swatch list mislabeled as a generic "Secondary N".
+ * When that happens, relabel the degenerate white swatch as plain "white"
+ * (it's still a legitimate color choice) and promote the real color to the
+ * "themePrimary" label instead, so the single color picker's "theme primary"
+ * always points at a real brand color.
+ */
+function _promoteRealPrimarySwatch(
+  swatches: IColorPropertySwatch[],
+): IColorPropertySwatch[] {
+  const isWhite = (hex: string): boolean => hex.toLowerCase() === "#ffffff";
+  const primaryIndex = swatches.findIndex((s) => s.label === "themePrimary");
+  if (primaryIndex === -1 || !isWhite(swatches[primaryIndex].color)) {
+    return swatches;
+  }
+
+  const realPrimary = swatches.find(
+    (s, i) =>
+      i !== primaryIndex && SECONDARY_SWATCH_LABEL.test(s.label) && !isWhite(s.color),
+  );
+  if (!realPrimary) return swatches;
+
+  return swatches.map((s, i) => {
+    if (i === primaryIndex) return { ...s, label: "white" };
+    if (s === realPrimary) return { ...s, label: "themePrimary" };
+    return s;
+  });
+}
+
+/**
+ * Renumbers every secondary-color-pair swatch ("Secondary N" or "brand-N")
+ * contiguously from 1, in list order. Needed because _promoteRealPrimarySwatch
+ * removes one such swatch's secondary label (relabeling it "themePrimary" or
+ * "white"), which would otherwise leave gaps like Secondary 1, Secondary 3.
+ */
+function _renumberSecondarySwatches(
+  swatches: IColorPropertySwatch[],
+): IColorPropertySwatch[] {
+  let count = 0;
+  return swatches.map((s) =>
+    SECONDARY_SWATCH_LABEL.test(s.label)
+      ? { ...s, label: `Secondary ${++count}` }
+      : s,
+  );
 }
 
 function _contrastText(hex: string): string {
@@ -246,16 +319,20 @@ export class ColorPropertyControls {
         );
 
         const secondarySwatches: IColorPropertySwatch[] = [];
-        palettesFromXml.forEach((entry, i) => {
+        let secondaryCount = 0;
+        palettesFromXml.forEach((entry) => {
           Object.keys(entry).forEach((name) => {
             const color = entry[name];
             if (!color || seen.has(color)) return;
             seen.add(color);
-            secondarySwatches.push({ color, label: `Secondary ${i + 1}` });
+            secondaryCount += 1;
+            secondarySwatches.push({ color, label: `Secondary ${secondaryCount}` });
           });
         });
 
-        this._swatches = [...primarySwatches, ...secondarySwatches];
+        this._swatches = _renumberSecondarySwatches(
+          _promoteRealPrimarySwatch([...primarySwatches, ...secondarySwatches]),
+        );
         if (this._swatches.length === 0) {
           this._swatches = [...FALLBACK_COLORS];
         }
@@ -320,12 +397,14 @@ export class ColorPropertyControls {
         (k) => ({ color: palette[k], label: k }),
       );
       const seen = new Set<string>();
-      this._swatches = [...secondarySwatches, ...paletteSwatches].filter(
-        (s) => {
-          if (seen.has(s.color)) return false;
-          seen.add(s.color);
-          return true;
-        },
+      this._swatches = _renumberSecondarySwatches(
+        _promoteRealPrimarySwatch(
+          [...secondarySwatches, ...paletteSwatches].filter((s) => {
+            if (seen.has(s.color)) return false;
+            seen.add(s.color);
+            return true;
+          }),
+        ),
       );
 
       const white = palette.white || "#ffffff";
