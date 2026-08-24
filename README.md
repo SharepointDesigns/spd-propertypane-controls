@@ -241,6 +241,25 @@ font sizes (e.g. a CSS custom property).
 
 ## Changelog
 
+### 1.1.1
+- `renderThemeSwatchPickerFields()` dual picker: `_crossJoinColorPairs()` now
+  unifies colors from both the `themePrimary` and `backgroundColor` roles
+  into one set before permuting, instead of cross-joining the two roles'
+  original sets separately. This eliminates degenerate same-color swatches
+  (e.g. white paired with itself) and stops dropping colors that only ever
+  appeared in one role. For N site colors plus white, this now yields the
+  correct `(N+1) * N` combinations.
+- `renderCompactColorPickerFields()` single picker: when the site theme
+  resolves the `themePrimary` palette slot to pure white (a known upstream
+  data issue where a color pair's accent/background roles get swapped), the
+  swatch list now relabels that degenerate swatch as plain `white` and
+  promotes the real brand color — previously mislabeled as a generic
+  `Secondary N` — to the `themePrimary` label instead.
+- Fixed `Secondary N` swatch numbering to increment per distinct color
+  rather than per color pair (which previously assigned the same number to
+  two different colors), and to renumber contiguously after the primary-color
+  promotion above removes two swatches from the sequence.
+
 ### 1.1.0
 - Added `PropertyPaneHeadingDropdownField` (heading-level dropdown with a
   custom font-size slider) and the underlying `HeadingDropdown` React component.
